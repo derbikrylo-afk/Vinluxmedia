@@ -3,15 +3,21 @@ name: VINLUX Media Update
 on:
   workflow_dispatch:
     inputs:
-      facture:
-        description: 'Folder name in Google Drive'
+      texture_slug:
+        description: 'Texture slug, example mat-serebro-temnoe'
         required: true
         default: 'mat-serebro-temnoe'
+      drive_root_name:
+        description: 'Google Drive root folder'
+        required: true
+        default: 'VINLUX_MEDIA'
+
+permissions:
+  contents: write
 
 jobs:
   media:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,7 +30,23 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Download media from Google Drive
+      - name: Download from Google Drive
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-        run: python scripts/download_drive.py "${{ github.event.inputs.facture }}"
+          TEXTURE_SLUG: ${{ github.event.inputs.texture_slug }}
+          GOOGLE_DRIVE_ROOT_NAME: ${{ github.event.inputs.drive_root_name }}
+        run: python scripts/download_drive.py
+
+      - name: Process media
+        env:
+          TEXTURE_SLUG: ${{ github.event.inputs.texture_slug }}
+        run: python scripts/process_media.py
+
+      - name: Publish
+        run: |
+          touch public/.nojekyll
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add public/
+          git commit -m "Media update ${{ github.event.inputs.texture_slug }}" || echo "No changes"
+          git push
