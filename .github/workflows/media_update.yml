@@ -1,0 +1,14 @@
+name: VINLUX Media Update
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Info
+        run: echo "VINLUX Media Engine ready"
