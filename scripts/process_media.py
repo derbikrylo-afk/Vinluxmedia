@@ -1,6 +1,7 @@
-import os
 import json
+import os
 import shutil
+from pathlib import Path
 
 SIZES = [
     "152x10","152x20","152x30","152x40","152x50","152x60",
@@ -12,36 +13,47 @@ SIZES = [
 
 
 def prepare_media(source, color):
-    target = os.path.join("public", color)
-    main = os.path.join(target, "main")
-    common = os.path.join(target, "common")
-    os.makedirs(main, exist_ok=True)
-    os.makedirs(common, exist_ok=True)
+    source = Path(source)
+    target = Path('public') / color
+    main = target / 'main'
+    common = target / 'common'
+    main.mkdir(parents=True, exist_ok=True)
+    common.mkdir(parents=True, exist_ok=True)
 
+    missing = []
     for index, size in enumerate(SIZES, start=1):
-        src = os.path.join(source, f"{index:02}_{size}.png")
-        if os.path.exists(src):
-            shutil.copy2(src, os.path.join(main, f"{size}.png"))
+        src = source / f'{index:02}_{size}.png'
+        if src.exists():
+            shutil.copy2(src, main / f'{size}.png')
+        else:
+            missing.append(src.name)
 
     for i in range(1, 13):
-        src = os.path.join(source, f"общий {i}.png")
-        if os.path.exists(src):
-            shutil.copy2(src, os.path.join(common, f"{i:02}.png"))
+        found = None
+        for ext in ['png','jpg','jpeg']:
+            candidate = source / f'общий {i}.{ext}'
+            if candidate.exists():
+                found = candidate
+                break
+        if found:
+            shutil.copy2(found, common / found.name.replace(f'общий {i}', f'{i:02}'))
 
-    video = os.path.join(source, "общее видео.MOV")
-    if os.path.exists(video):
-        shutil.copy2(video, os.path.join(target, "video.MOV"))
+    video = source / 'общее видео.MOV'
+    if video.exists():
+        shutil.copy2(video, target / 'video.MOV')
 
     manifest = {
-        "color": color,
-        "main": SIZES,
-        "common": [f"{i:02}.png" for i in range(1,13)],
-        "video": "video.MOV"
+        'color': color,
+        'main': [f'{x}.png' for x in SIZES],
+        'common': sorted([x.name for x in common.iterdir() if x.is_file()]),
+        'video': 'video.MOV' if (target / 'video.MOV').exists() else None,
+        'missing_main': missing
     }
 
-    with open(os.path.join(target, "manifest.json"), "w", encoding="utf-8") as f:
-        json.dump(manifest, f, ensure_ascii=False, indent=2)
+    with open(target / 'manifest.json','w',encoding='utf-8') as f:
+        json.dump(manifest,f,ensure_ascii=False,indent=2)
 
 
-if __name__ == "__main__":
-    prepare_media("input", "mat-serebro-temnoe")
+if __name__ == '__main__':
+    slug = os.environ.get('TEXTURE_SLUG','mat-serebro-temnoe')
+    prepare_media(Path('input') / slug, slug)
